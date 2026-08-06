@@ -1,0 +1,42 @@
+# Seafile 极简部署配置
+# 版本: 2026.03.22
+# 遵循UNIX哲学：Just Enough
+
+# Seafile 局域网 HTTP 代理配置（Caddy 2.x 原生支持）
+:80 {
+    # 反向代理到 Seafile 容器
+    reverse_proxy seafile-app:80 {
+        transport http {
+            keepalive 300s
+            read_timeout 300s
+            write_timeout 300s
+            dial_timeout 10s
+        }
+        # 关键修复：仅传递原始 Host 头（Caddy 已包含正确端口）
+        header_up Host {host}
+        header_up X-Real-IP {remote_addr}
+        header_up X-Forwarded-For {remote_addr}
+        # 修复 X-Forwarded-Host，避免重复端口
+        header_up X-Forwarded-Host {host}
+    }
+
+    # 基础安全头
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        -Server  # 隐藏 Caddy 版本
+        # CORS 配置 - 同源部署不需要，注释掉
+        # 如需跨域访问，请取消下面注释并修改为具体域名或*
+        # Access-Control-Allow-Origin "http://your-domain.com" 
+        Access-Control-Allow-Credentials "true"
+    }
+
+    # 开启 gzip 压缩
+    encode gzip
+
+    # 日志配置
+    log {
+        level INFO
+        output file /var/log/caddy/access.log
+    }
+}
